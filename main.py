@@ -34,11 +34,6 @@ class MyWindow(QDialog):
         self.build_ui()
 
     def build_ui(self):
-        # layout = QtWidgets.QVBoxLayout(self)
-        # label = QtWidgets.QLabel("🎉 Hello from PySide6!")
-        # button = QtWidgets.QPushButton("Click Me")
-        # layout.addWidget(label)
-        # layout.addWidget(button)
         self.previewRange()
         self.imageSize()
         self.displayColor()
@@ -68,34 +63,43 @@ class MyWindow(QDialog):
 
         self.previewGroup = QGroupBox('Preview Range')
 
-        #setting
+        # setting min and max spin box value
         self.minRangeSB.setMinimum(0)
         self.minRangeSB.setMaximum(1000000)
         self.maxRangeSB.setMinimum(0)
         self.maxRangeSB.setMaximum(1000000)
 
+        # set current spin box value 
         self.minRangeSB.setValue(self.minframe)
         self.maxRangeSB.setValue(self.maxframe)
+
+        # set init time range option
         self.activeTimeSegmentRB.setChecked(True)
+
+        # disable another radiobox to false
         self.minRangeSB.setEnabled(False)
         self.toTextLB.setEnabled(False)
         self.maxRangeSB.setEnabled(False)
 
-        #set signal
+        # set action on click
         self.activeTimeSegmentRB.clicked.connect(self.previewOptionClick)
         self.customRangeRB.clicked.connect(self.previewOptionClick)
+
+        # add all widget about custom time to customRangeLayout
+        customRangeLayout.addWidget(self.minRangeSB)
+        customRangeLayout.addWidget(self.toTextLB)
+        customRangeLayout.addWidget(self.maxRangeSB)
         
+        # add all widget about time range to previewLayout
         previewLayout.addWidget(self.activeTimeSegmentRB)
         previewLayout.addWidget(self.customRangeRB)
         previewLayout.addLayout(customRangeLayout)
 
-        customRangeLayout.addWidget(self.minRangeSB)
-        customRangeLayout.addWidget(self.toTextLB)
-        customRangeLayout.addWidget(self.maxRangeSB)
-
+        # set previewLayout to previewGroup
         self.previewGroup.setLayout(previewLayout)
 
     def imageSize(self):
+        # imageSize widget
         self.percentLB = QLabel('Percent of Output:')
         self.percentSB = QSpinBox()
         self.resolutionLB = QLabel('Resolution:')
@@ -148,7 +152,6 @@ class MyWindow(QDialog):
 
         displayLayout.addWidget(self.objectColorRB)
         displayLayout.addWidget(self.materialColorRB)
-
         displayLayout.addWidget(self.defaultShadingRB)
         displayLayout.addWidget(self.facetsRB)
         displayLayout.addWidget(self.boundingBoxRB)
@@ -168,7 +171,7 @@ class MyWindow(QDialog):
         pathSelectLayout = QHBoxLayout()
         self.locationLayout = QVBoxLayout()
 
-        self.locationGroup = QGroupBox('Location')
+        locationGroup = QGroupBox('Location')
 
         self.customPathRB.setChecked(True)
         self.makePreviewBT.setFixedHeight(50)
@@ -186,9 +189,9 @@ class MyWindow(QDialog):
         pathSelectLayout.addWidget(self.pathInputLE)
         pathSelectLayout.addWidget(self.exploreBT)
 
-        self.locationGroup.setLayout(locationOptionLayout)
+        locationGroup.setLayout(locationOptionLayout)
 
-        self.locationLayout.addWidget(self.locationGroup)
+        self.locationLayout.addWidget(locationGroup)
         self.locationLayout.addLayout(pathSelectLayout)
         self.locationLayout.addWidget(self.makePreviewBT)
 
@@ -285,7 +288,9 @@ class MyWindow(QDialog):
         self.outputDir = ''
         minframe = 0
         maxframe = 0
+
         panel = cmds.getPanel(type="modelPanel")
+
         if self.safeFrameCB.isChecked():
             cmds.camera(self.camera, e=True, displaySafeAction=True)
             cmds.camera(self.camera, e=True, displaySafeTitle=True)
@@ -329,6 +334,10 @@ class MyWindow(QDialog):
 
         filename = self.currentFileName.replace('.ma','')
         image_sequence_path = "%s/%s_playblast/%s"%(self.outputDir,filename,filename)
+        
+        self.textStamp(filename,image_sequence_path,self.outputDir,self.framerate)
+        
+    def textStamp(self,filename,image_sequence_path,outputDir,framerate):
         drawtext_filters = []
         if self.frameNumbersCB.isChecked():
             drawtext_filters.append(f"drawtext=text='Frame\\: %{{n}}':x=20:y=40:fontsize=32:fontcolor=white:box=1:boxcolor=black@0.5")
@@ -338,15 +347,15 @@ class MyWindow(QDialog):
         filters = ",".join(drawtext_filters)
 
         i = 1
-        videoOutput = "%s/%s_v%04d.mp4"%(self.outputDir,filename,i)
+        videoOutput = "%s/%s_v%04d.mp4"%(outputDir,filename,i)
         while os.path.exists(videoOutput):
-            videoOutput = "%s/%s_v%04d.mp4"%(self.outputDir,filename,i)
+            videoOutput = "%s/%s_v%04d.mp4"%(outputDir,filename,i)
             i+=1
 
         if not filters is "":
             ffmpeg_command = [
                 "ffmpeg", 
-                "-framerate", str(self.framerate), 
+                "-framerate", str(framerate), 
                 "-start_number", "1",
                 "-i", image_sequence_path + "_frame.%04d.png",
                 "-vf", filters,
@@ -357,7 +366,7 @@ class MyWindow(QDialog):
         else:
             ffmpeg_command = [
                 "ffmpeg", 
-                "-framerate", str(self.framerate), 
+                "-framerate", str(framerate), 
                 "-start_number", "1",
                 "-i", image_sequence_path + "_frame.%04d.png",
                 "-c:v", "libx264",
@@ -379,8 +388,9 @@ class MyWindow(QDialog):
         process.stdout.close()
         process.wait()
 
-        shutil.rmtree('{}/{}/'.format(self.outputDir,self.currentFileName.replace('.ma','_playblast')))
+        shutil.rmtree('{}/{}/'.format(outputDir,filename+'_playblast'))
         os.startfile(videoOutput)
+
 def show_ui():
     global my_ui
     try:
